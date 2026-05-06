@@ -12,15 +12,19 @@ terraform {
   }
 }
 
+# Resolve the project root (one level above this terraform/ directory)
+locals {
+  project_root = "${path.module}/.."
+}
+
 # Create log directory structure for all honeypot services
 resource "null_resource" "create_log_dirs" {
   provisioner "local-exec" {
     command = <<-EOT
-      mkdir -p honeypots/logs/cowrie
-      mkdir -p honeypots/logs/dionaea
-      mkdir -p honeypots/logs/dashboard
+      mkdir -p "${local.project_root}/honeypots/logs/cowrie"
+      mkdir -p "${local.project_root}/honeypots/logs/dionaea"
+      mkdir -p "${local.project_root}/honeypots/logs/dashboard"
     EOT
-    working_dir = path.module == "." ? path.root : "${path.root}"
   }
 
   triggers = {
@@ -30,7 +34,7 @@ resource "null_resource" "create_log_dirs" {
 
 # Generate Ansible inventory file dynamically
 resource "local_file" "ansible_inventory" {
-  filename = "${path.root}/ansible/inventory.ini"
+  filename = "${local.project_root}/ansible/inventory.ini"
   content  = <<-EOT
     [honeymesh]
     localhost ansible_connection=local
@@ -43,7 +47,7 @@ resource "local_file" "ansible_inventory" {
 resource "null_resource" "deploy_honeymesh" {
   provisioner "local-exec" {
     command     = "docker compose up -d"
-    working_dir = "${path.root}/honeypots"
+    working_dir = "${local.project_root}/honeypots"
   }
 
   depends_on = [
@@ -52,7 +56,7 @@ resource "null_resource" "deploy_honeymesh" {
   ]
 
   triggers = {
-    compose_hash = filemd5("${path.root}/honeypots/docker-compose.yml")
+    compose_hash = filemd5("${local.project_root}/honeypots/docker-compose.yml")
   }
 }
 
