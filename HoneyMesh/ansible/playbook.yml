@@ -1,0 +1,38 @@
+---
+- name: Deploy HoneyMesh
+  hosts: honeymesh
+  become: false
+
+  tasks:
+    - name: Pull latest cowrie image
+      community.docker.docker_image:
+        name: vitrag00/honeymesh-cowrie
+        tag: latest
+        source: pull
+        force_source: true
+
+    - name: Pull latest dionaea image
+      community.docker.docker_image:
+        name: vitrag00/honeymesh-dionaea
+        tag: latest
+        source: pull
+        force_source: true
+
+    - name: Run docker-compose up in honeypots directory
+      community.docker.docker_compose_v2:
+        project_src: "{{ playbook_dir }}/../honeypots"
+        state: present
+        pull: always
+
+    - name: Wait for services to start
+      ansible.builtin.pause:
+        seconds: 10
+
+    - name: Check all containers are running
+      ansible.builtin.command: docker ps --filter "name=honeymesh" --format "table {{ '{{' }}.Names{{ '}}' }}\t{{ '{{' }}.Status{{ '}}' }}"
+      register: docker_ps_output
+      changed_when: false
+
+    - name: Display running containers
+      ansible.builtin.debug:
+        msg: "{{ docker_ps_output.stdout_lines }}"

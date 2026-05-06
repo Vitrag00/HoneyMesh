@@ -1,0 +1,64 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dionaea
+  namespace: honeymesh
+  labels:
+    app: dionaea
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: dionaea
+  template:
+    metadata:
+      labels:
+        app: dionaea
+    spec:
+      containers:
+        - name: dionaea
+          image: vitrag00/honeymesh-dionaea:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 21
+              protocol: TCP
+            - containerPort: 80
+              protocol: TCP
+            - containerPort: 445
+              protocol: TCP
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "125m"
+            limits:
+              memory: "256Mi"
+              cpu: "250m"
+          volumeMounts:
+            - name: dionaea-logs
+              mountPath: /opt/dionaea/var/log/dionaea
+      volumes:
+        - name: dionaea-logs
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: dionaea-service
+  namespace: honeymesh
+spec:
+  selector:
+    app: dionaea
+  ports:
+    - name: ftp
+      protocol: TCP
+      port: 21
+      targetPort: 21
+    - name: http
+      protocol: TCP
+      port: 80
+      targetPort: 80
+    - name: smb
+      protocol: TCP
+      port: 445
+      targetPort: 445
+  type: LoadBalancer

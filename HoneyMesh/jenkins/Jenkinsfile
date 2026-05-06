@@ -1,0 +1,81 @@
+pipeline {
+    agent any
+
+    environment {
+        SONAR_HOST_URL  = 'http://localhost:9000'
+        DOCKER_REGISTRY = 'vitrag00'
+        COWRIE_IMAGE    = "${DOCKER_REGISTRY}/honeymesh-cowrie:latest"
+        DIONAEA_IMAGE   = "${DOCKER_REGISTRY}/honeymesh-dionaea:latest"
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                git url: 'https://github.com/Vitrag00/HoneyMesh.git', branch: 'main'
+            }
+        }
+
+        stage('SonarQube Analysis') {
+            steps {
+                withSonarQubeEnv('SonarQube') {
+                    sh """
+                        sonar-scanner \
+                          -Dproject.settings=sonarqube/sonar-project.properties \
+                          -Dsonar.host.url=${SONAR_HOST_URL}
+                    """
+                }
+            }
+        }
+
+        stage('Build Images') {
+            steps {
+                sh "docker build -t ${COWRIE_IMAGE} honeypots/cowrie/"
+                sh "docker build -t ${DIONAEA_IMAGE} honeypots/dionaea/"
+            }
+        }
+
+        stage('Push to DockerHub') {
+            steps {
+                withCredentials([usernamePassword(
+                    credentialsId: 'DOCKER_CREDENTIALS',
+                    usernameVariable: 'DOCKER_USER',
+                    passwordVariable: 'DOCKER_PASS'
+                )]) {
+                    sh "echo ${DOCKER_PASS} | docker login -u ${DOCKER_USER} --password-stdin"
+                    sh "docker push ${COWRIE_IMAGE}"
+                    sh "docker push ${DIONAEA_IMAGE}"
+                    sh "docker logout"
+                }
+            }
+        }
+
+        stage('Ansible Deploy') {
+            steps {
+                sh "ansible-playbook -i ansible/inventory.ini ansible/playbook.yml"
+            }
+        }
+
+        stage('Notify') {
+            steps {
+                script {
+                    def timestamp = new Date().format("yyyy-MM-dd HH:mm:ss")
+                    echo "Deployment complete at ${timestamp}"
+                    echo "Services available at:"
+                    echo "  SSH Honeypot  -> localhost:2222"
+                    echo "  Dashboard     -> localhost:5000"
+                    echo "  Prometheus    -> localhost:9090"
+                    echo "  Grafana       -> localhost:3000"
+                }
+            }
+        }
+    }
+
+    post {
+        always {
+            cleanWs()
+        }
+        failure {
+            echo "Pipeline failed. Check logs for details."
+        }
+    }
+}

@@ -1,0 +1,77 @@
+version: "3.8"
+
+services:
+  cowrie:
+    build: ./cowrie
+    image: vitrag00/honeymesh-cowrie:latest
+    container_name: honeymesh-cowrie
+    ports:
+      - "2222:2222"
+    volumes:
+      - ./logs/cowrie:/cowrie/var/log/cowrie
+    networks:
+      - honeymesh-net
+    restart: unless-stopped
+
+  dionaea:
+    build: ./dionaea
+    image: vitrag00/honeymesh-dionaea:latest
+    container_name: honeymesh-dionaea
+    ports:
+      - "21:21"
+      - "23:23"
+      - "8081:80"
+      - "4443:443"
+      - "445:445"
+    volumes:
+      - ./logs/dionaea:/opt/dionaea/var/log/dionaea
+    networks:
+      - honeymesh-net
+    restart: unless-stopped
+
+  dashboard:
+    build: ../dashboard
+    container_name: honeymesh-dashboard
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./logs:/app/logs
+    networks:
+      - honeymesh-net
+    restart: unless-stopped
+    depends_on:
+      - cowrie
+      - dionaea
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: honeymesh-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ../monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+    networks:
+      - honeymesh-net
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: honeymesh-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=honeymesh
+    volumes:
+      - grafana-data:/var/lib/grafana
+    networks:
+      - honeymesh-net
+    restart: unless-stopped
+    depends_on:
+      - prometheus
+
+networks:
+  honeymesh-net:
+    driver: bridge
+
+volumes:
+  grafana-data:
