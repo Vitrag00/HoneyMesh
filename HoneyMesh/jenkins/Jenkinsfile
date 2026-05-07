@@ -18,13 +18,17 @@ pipeline {
         stage('SonarQube Analysis') {
             steps {
                 withSonarQubeEnv('SonarQube') {
-                    script {
-                        def scannerHome = tool 'SonarScanner'
-                        sh """
-                            ${scannerHome}/bin/sonar-scanner \
-                              -Dproject.settings=sonarqube/sonar-project.properties \
-                              -Dsonar.host.url=${SONAR_HOST_URL}
-                        """
+                    withCredentials([string(credentialsId: 'SONAR_TOKEN', variable: 'SONAR_AUTH')]) {
+                        script {
+                            def scannerHome = tool 'SonarScanner'
+                            sh """
+                                ${scannerHome}/bin/sonar-scanner \
+                                  -Dproject.settings=sonarqube/sonar-project.properties \
+                                  -Dsonar.host.url=${SONAR_HOST_URL} \
+                                  -Dsonar.token=${SONAR_AUTH} \
+                                  -Dsonar.scanner.skipJreProvisioning=true
+                            """
+                        }
                     }
                 }
             }
