@@ -18,11 +18,14 @@ pipeline {
         stage('SonarQube Analysis') {
             steps {
                 withSonarQubeEnv('SonarQube') {
-                    sh """
-                        sonar-scanner \
-                          -Dproject.settings=sonarqube/sonar-project.properties \
-                          -Dsonar.host.url=${SONAR_HOST_URL}
-                    """
+                    script {
+                        def scannerHome = tool 'SonarScanner'
+                        sh """
+                            ${scannerHome}/bin/sonar-scanner \
+                              -Dproject.settings=sonarqube/sonar-project.properties \
+                              -Dsonar.host.url=${SONAR_HOST_URL}
+                        """
+                    }
                 }
             }
         }
